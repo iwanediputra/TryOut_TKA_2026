@@ -417,23 +417,30 @@
                         <i class="fa-solid fa-chart-line"></i>
                     </div>
                     <div>
-                        <div class="flex items-center space-x-2">
+                        <div class="flex items-center space-x-2 flex-wrap gap-2">
                             <h2 class="text-xl sm:text-2xl font-extrabold">Dashboard Rekapitulasi Nilai Guru</h2>
                             <div id="cloudStatusBadge" class="px-3 py-1 bg-slate-800 text-slate-300 border border-slate-700 rounded-xl text-xs font-bold flex items-center">
                                 <i class="fa-solid fa-database mr-1.5"></i> Memeriksa Koneksi Data...
+                            </div>
+                            <div id="sheetStatusBadge" class="px-3 py-1 bg-slate-800 text-slate-300 border border-slate-700 rounded-xl text-xs font-bold flex items-center cursor-pointer" onclick="openGoogleSheetModal()">
+                                <i class="fa-solid fa-table text-emerald-400 mr-1.5"></i> Google Sheet: Belum Terhubung
                             </div>
                         </div>
                         <p class="text-xs text-slate-300 mt-1">Data hasil Try Out TKA SD ter-update secara otomatis</p>
                     </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                    <button onclick="exportScoresToCSV()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-1.5">
-                        <i class="fa-solid fa-file-excel"></i>
-                        <span>Ekspor Excel (CSV)</span>
+                    <button onclick="openGoogleSheetModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-1.5">
+                        <i class="fa-file-excel fa-solid"></i>
+                        <span>Atur Google Sheet</span>
+                    </button>
+                    <button onclick="exportScoresToCSV()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-1.5 border border-slate-700">
+                        <i class="fa-solid fa-download"></i>
+                        <span>Ekspor CSV</span>
                     </button>
                     <button onclick="importSubmissionsJSON()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-1.5">
                         <i class="fa-solid fa-file-import"></i>
-                        <span>Impor / Gabung Data</span>
+                        <span>Impor / Gabung</span>
                     </button>
                     <button onclick="clearDashboardData()" class="px-3 py-2 bg-rose-600/80 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition-all flex items-center space-x-1.5">
                         <i class="fa-solid fa-trash"></i>
@@ -534,21 +541,41 @@
                 </button>
             </div>
 
-            <!-- Chat History -->
-            <div id="aiChatMessages" class="flex-grow p-4 overflow-y-auto space-y-3 bg-slate-50 text-xs">
-                <div class="bg-white p-3 rounded-2xl border border-slate-200 text-slate-700 max-w-[85%] shadow-sm">
-                    Halo Anak Pintar! 👋 Ada konsep atau kata sulit yang ingin ditanyakan kepada Bu Guru AI?
-                </div>
+    <!-- Google Sheet Configuration Modal -->
+    <div id="googleSheetModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="font-bold text-slate-800 text-base flex items-center">
+                    <i class="fa-solid fa-table text-emerald-600 mr-2"></i> Hubungkan Google Spreadsheet
+                </h3>
+                <button onclick="closeGoogleSheetModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <p class="text-xs text-slate-600 leading-relaxed">
+                Masukkan <strong>URL Web App Apps Script</strong> dari Google Spreadsheet Anda. Semua nilai siswa yang dikirim akan otomatis masuk sebagai baris baru di Google Sheet Anda secara realtime!
+            </p>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">URL Web App Google Apps Script</label>
+                <input type="url" id="googleSheetUrlInput" placeholder="https://script.google.com/macros/s/AKfycbx.../exec" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono">
             </div>
 
-            <!-- Chat Input -->
-            <form onsubmit="sendAIChatMessage(event)" class="p-3 bg-white border-t border-slate-200 flex items-center space-x-2">
-                <input type="text" id="aiChatInput" placeholder="Ketik pertanyaanmu di sini..." class="flex-grow px-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium">
-                <button type="submit" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center space-x-1">
-                    <span>Kirim</span>
-                    <i class="fa-solid fa-paper-plane text-[10px]"></i>
-                </button>
-            </form>
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-[11px] text-amber-800 space-y-1">
+                <span class="font-bold block"><i class="fa-solid fa-circle-info mr-1"></i> Petunjuk Singkat:</span>
+                <ol class="list-decimal list-inside space-y-0.5 text-amber-900 font-medium">
+                    <li>Buka Google Sheet $\rightarrow$ Menu Ekstensi $\rightarrow$ Apps Script.</li>
+                    <li>Paste kode <code>doPost(e)</code>, lalu klik Deploy $\rightarrow$ New Deployment.</li>
+                    <li>Atur <i>Who has access</i> menjadi <strong>Anyone</strong>.</li>
+                    <li>Copy URL Web App lalu paste di kolom di atas.</li>
+                </ol>
+            </div>
+
+            <div class="flex items-center justify-end space-x-2 pt-2">
+                <button onclick="closeGoogleSheetModal()" class="px-4 py-2 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-200">Batal</button>
+                <button onclick="saveGoogleSheetUrl()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md">Simpan URL</button>
+            </div>
         </div>
     </div>
 
@@ -607,10 +634,68 @@
                 cloudBadge.className = "px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold flex items-center";
                 cloudBadge.innerHTML = `<i class="fa-solid fa-hard-drive mr-1.5"></i> Penyimpanan: Lokal (Perangkat Ini)`;
             }
+
+            updateSheetBadge();
         }
+
+        function updateSheetBadge() {
+            const sheetBadge = document.getElementById('sheetStatusBadge');
+            if (!sheetBadge) return;
+            const sheetUrl = localStorage.getItem('tka_google_sheet_url');
+            if (sheetUrl) {
+                sheetBadge.className = "px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold flex items-center cursor-pointer";
+                sheetBadge.innerHTML = `<i class="fa-solid fa-check-circle text-emerald-400 mr-1.5"></i> Google Sheet: Terhubung`;
+            } else {
+                sheetBadge.className = "px-3 py-1 bg-slate-800 text-slate-300 border border-slate-700 rounded-xl text-xs font-bold flex items-center cursor-pointer";
+                sheetBadge.innerHTML = `<i class="fa-solid fa-table text-slate-400 mr-1.5"></i> Google Sheet: Belum Terhubung`;
+            }
+        }
+
+        window.openGoogleSheetModal = function() {
+            const modal = document.getElementById('googleSheetModal');
+            const input = document.getElementById('googleSheetUrlInput');
+            if (modal && input) {
+                input.value = localStorage.getItem('tka_google_sheet_url') || '';
+                modal.classList.remove('hidden');
+            }
+        };
+
+        window.closeGoogleSheetModal = function() {
+            const modal = document.getElementById('googleSheetModal');
+            if (modal) modal.classList.add('hidden');
+        };
+
+        window.saveGoogleSheetUrl = function() {
+            const input = document.getElementById('googleSheetUrlInput');
+            const url = input ? input.value.trim() : '';
+            if (url) {
+                localStorage.setItem('tka_google_sheet_url', url);
+                alert("URL Google Apps Script berhasil disimpan! Setiap nilai murid kini akan otomatis terkirim ke Google Spreadsheet Anda.");
+            } else {
+                localStorage.removeItem('tka_google_sheet_url');
+                alert("Integrasi Google Spreadsheet dinonaktifkan.");
+            }
+            closeGoogleSheetModal();
+            updateSheetBadge();
+        };
 
         // Save result to cloud Firestore
         window.saveSubmissionToCloud = async function(data) {
+            // Also send to Google Sheet if URL exists
+            const googleSheetUrl = localStorage.getItem('tka_google_sheet_url');
+            if (googleSheetUrl) {
+                try {
+                    fetch(googleSheetUrl, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                } catch (err) {
+                    console.warn("Gagal mengirim ke Google Sheet:", err);
+                }
+            }
+
             if (!db || !auth || !auth.currentUser) return false;
             try {
                 const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'submissions');
