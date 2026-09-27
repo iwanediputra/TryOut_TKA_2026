@@ -417,18 +417,31 @@
                         <i class="fa-solid fa-chart-line"></i>
                     </div>
                     <div>
-                        <h2 class="text-xl sm:text-2xl font-extrabold">Dashboard Rekapitulasi Nilai Guru</h2>
-                        <p class="text-xs text-slate-300">Data hasil Try Out TKA SD Bahasa Indonesia ter-update secara real-time</p>
+                        <div class="flex items-center space-x-2">
+                            <h2 class="text-xl sm:text-2xl font-extrabold">Dashboard Rekapitulasi Nilai Guru</h2>
+                            <div id="cloudStatusBadge" class="px-3 py-1 bg-slate-800 text-slate-300 border border-slate-700 rounded-xl text-xs font-bold flex items-center">
+                                <i class="fa-solid fa-database mr-1.5"></i> Memeriksa Koneksi Data...
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-300 mt-1">Data hasil Try Out TKA SD ter-update secara otomatis</p>
                     </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                    <button onclick="exportScoresToCSV()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-1.5">
+                    <button onclick="exportScoresToCSV()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-1.5">
                         <i class="fa-solid fa-file-excel"></i>
                         <span>Ekspor Excel (CSV)</span>
                     </button>
-                    <button onclick="closeTeacherDashboard()" class="px-4 py-2 bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all flex items-center space-x-1.5">
+                    <button onclick="importSubmissionsJSON()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-1.5">
+                        <i class="fa-solid fa-file-import"></i>
+                        <span>Impor / Gabung Data</span>
+                    </button>
+                    <button onclick="clearDashboardData()" class="px-3 py-2 bg-rose-600/80 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition-all flex items-center space-x-1.5">
+                        <i class="fa-solid fa-trash"></i>
+                        <span>Reset Data</span>
+                    </button>
+                    <button onclick="closeTeacherDashboard()" class="px-3.5 py-2 bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all flex items-center space-x-1.5">
                         <i class="fa-solid fa-arrow-left"></i>
-                        <span>Kembali ke Try Out</span>
+                        <span>Kembali</span>
                     </button>
                 </div>
             </div>
@@ -546,20 +559,28 @@
         import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'tryout-tka-sd-2026';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "demo-key",
-            authDomain: "demo.firebaseapp.com",
-            projectId: "demo-project",
-            storageBucket: "demo.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:demo"
-        };
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        // Initialize local submissions from localStorage
+        window.dashboardSubmissions = JSON.parse(localStorage.getItem('tka_sd_submissions') || '[]');
 
+        let db = null;
+        let auth = null;
         let userAuthenticated = false;
+
+        if (firebaseConfig && firebaseConfig.apiKey !== "demo-key") {
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                authenticateUser();
+            } catch (e) {
+                console.warn("Firestore initialization skipped:", e);
+                updateStatusBadge(false);
+            }
+        } else {
+            updateStatusBadge(false);
+        }
 
         async function authenticateUser() {
             try {
@@ -572,12 +593,25 @@
                 subscribeToSubmissions();
             } catch (err) {
                 console.warn("Auth initial state:", err);
+                updateStatusBadge(false);
             }
         }
 
-        // Save result automatically to cloud Firestore
+        function updateStatusBadge(isCloudActive) {
+            const cloudBadge = document.getElementById('cloudStatusBadge');
+            if (!cloudBadge) return;
+            if (isCloudActive) {
+                cloudBadge.className = "px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold flex items-center";
+                cloudBadge.innerHTML = `<span class="w-2 h-2 bg-emerald-400 rounded-full animate-ping mr-2"></span> Cloud Live Sync: Aktif`;
+            } else {
+                cloudBadge.className = "px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold flex items-center";
+                cloudBadge.innerHTML = `<i class="fa-solid fa-hard-drive mr-1.5"></i> Penyimpanan: Lokal (Perangkat Ini)`;
+            }
+        }
+
+        // Save result to cloud Firestore
         window.saveSubmissionToCloud = async function(data) {
-            if (!userAuthenticated && auth.currentUser) userAuthenticated = true;
+            if (!db || !auth || !auth.currentUser) return false;
             try {
                 const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'submissions');
                 await addDoc(colRef, {
@@ -593,25 +627,36 @@
 
         // Realtime Listener for Teacher Dashboard
         function subscribeToSubmissions() {
-            if (!auth.currentUser) return;
+            if (!db || !auth || !auth.currentUser) return;
             const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'submissions');
             onSnapshot(colRef, (snapshot) => {
-                const submissions = [];
+                const cloudSubmissions = [];
                 snapshot.forEach(doc => {
-                    submissions.push({ id: doc.id, ...doc.data() });
+                    cloudSubmissions.push({ id: doc.id, ...doc.data() });
                 });
-                // Sort by latest submitted time in memory
-                submissions.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-                window.dashboardSubmissions = submissions;
+                
+                // Merge cloud data with local data seamlessly
+                const localData = JSON.parse(localStorage.getItem('tka_sd_submissions') || '[]');
+                const combined = [...cloudSubmissions];
+
+                localData.forEach(localItem => {
+                    const exists = combined.some(c => c.studentNo === localItem.studentNo && c.submittedAt === localItem.submittedAt);
+                    if (!exists) combined.push(localItem);
+                });
+
+                combined.sort((a, b) => new Date(b.createdAt || b.submittedAt || 0) - new Date(a.createdAt || a.submittedAt || 0));
+                window.dashboardSubmissions = combined;
+                localStorage.setItem('tka_sd_submissions', JSON.stringify(combined));
+
+                updateStatusBadge(true);
                 if (window.renderDashboardTable) {
                     window.renderDashboardTable();
                 }
             }, (error) => {
-                console.error("Snapshot error:", error);
+                console.warn("Snapshot error:", error);
+                updateStatusBadge(false);
             });
         }
-
-        authenticateUser();
     </script>
 
     <script>
@@ -1819,8 +1864,8 @@
             const timeTakenStr = `${diffMins}m ${diffSecs}s`;
             document.getElementById('timeTakenText').innerText = timeTakenStr;
 
-            // Automatically send submission to Realtime Cloud Dashboard
-            const cloudPayload = {
+            // Payload object
+            const submissionPayload = {
                 studentName: studentProfile.name,
                 studentNo: studentProfile.no,
                 schoolName: studentProfile.school,
@@ -1833,14 +1878,27 @@
                 submittedAt: new Date().toLocaleString('id-ID')
             };
 
+            // 1. Save locally IMMEDIATELY
+            let localSubmissions = JSON.parse(localStorage.getItem('tka_sd_submissions') || '[]');
+            localSubmissions.unshift(submissionPayload);
+            localStorage.setItem('tka_sd_submissions', JSON.stringify(localSubmissions));
+            window.dashboardSubmissions = localSubmissions;
+
+            // 2. Try saving to Cloud if enabled
             if (window.saveSubmissionToCloud) {
-                window.saveSubmissionToCloud(cloudPayload).then(success => {
-                    if (success) {
-                        const statusToast = document.createElement('div');
-                        statusToast.className = 'bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs px-4 py-2 rounded-xl mb-4 text-center font-bold';
-                        statusToast.innerHTML = `<i class="fa-solid fa-cloud-arrow-up text-emerald-600 mr-2"></i> Nilai Anda [${studentProfile.subject}] telah otomatis terkirim ke Dashboard Rekapitulasi Guru!`;
-                        document.getElementById('studentResultInfo').after(statusToast);
-                    }
+                window.saveSubmissionToCloud(submissionPayload).then(cloudSuccess => {
+                    const statusToast = document.createElement('div');
+                    statusToast.className = cloudSuccess 
+                        ? 'bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs px-4 py-2 rounded-xl mb-4 text-center font-bold'
+                        : 'bg-blue-50 border border-blue-200 text-blue-800 text-xs px-4 py-2 rounded-xl mb-4 text-center font-bold';
+                    statusToast.innerHTML = cloudSuccess 
+                        ? `<i class="fa-solid fa-cloud-arrow-up text-emerald-600 mr-2"></i> Nilai Anda [${studentProfile.subject}] berhasil tersimpan ke Cloud & Dashboard Rekapitulasi Guru!`
+                        : `<i class="fa-solid fa-circle-check text-blue-600 mr-2"></i> Nilai Anda [${studentProfile.subject}] berhasil tersimpan di Rekapitulasi Perangkat Ini!`;
+                    
+                    const existingToast = document.getElementById('submitStatusToast');
+                    if (existingToast) existingToast.remove();
+                    statusToast.id = 'submitStatusToast';
+                    document.getElementById('studentResultInfo').after(statusToast);
                 });
             }
 
@@ -2175,6 +2233,35 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        }
+
+        function importSubmissionsJSON() {
+            const jsonText = prompt("Tempelkan data JSON rekap nilai siswa yang ingin digabungkan:");
+            if (!jsonText) return;
+            try {
+                const importedData = JSON.parse(jsonText);
+                if (Array.isArray(importedData)) {
+                    let current = window.dashboardSubmissions || [];
+                    const combined = [...current, ...importedData];
+                    window.dashboardSubmissions = combined;
+                    localStorage.setItem('tka_sd_submissions', JSON.stringify(combined));
+                    renderDashboardTable();
+                    alert(`Berhasil mengimpor & menggabungkan ${importedData.length} data nilai siswa!`);
+                } else {
+                    alert("Format data JSON tidak valid.");
+                }
+            } catch (e) {
+                alert("Gagal membaca format data. Pastikan format teks JSON sesuai.");
+            }
+        }
+
+        function clearDashboardData() {
+            if (confirm("Apakah Anda yakin ingin menghapus seluruh data rekapitulasi nilai di perangkat ini? Action ini tidak bisa dibatalkan.")) {
+                localStorage.removeItem('tka_sd_submissions');
+                window.dashboardSubmissions = [];
+                renderDashboardTable();
+                alert("Seluruh data rekapitulasi nilai telah dibersihkan.");
+            }
         }
     </script>
 </body>
