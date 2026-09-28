@@ -591,6 +591,13 @@
         // Initialize local submissions from localStorage
         window.dashboardSubmissions = JSON.parse(localStorage.getItem('tka_sd_submissions') || '[]');
 
+        // Default Google Sheet Apps Script URL provided by User
+        const DEFAULT_GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycby5I_qoxy0FhwtlX8EgUNxMaX74jaXDTzB7rCCynrWDceZcPtBide2vye5VGKOoEWcs/exec";
+
+        function getGoogleSheetUrl() {
+            return localStorage.getItem('tka_google_sheet_url') || DEFAULT_GOOGLE_SHEET_URL;
+        }
+
         let db = null;
         let auth = null;
         let userAuthenticated = false;
@@ -641,10 +648,10 @@
         function updateSheetBadge() {
             const sheetBadge = document.getElementById('sheetStatusBadge');
             if (!sheetBadge) return;
-            const sheetUrl = localStorage.getItem('tka_google_sheet_url');
+            const sheetUrl = getGoogleSheetUrl();
             if (sheetUrl) {
                 sheetBadge.className = "px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold flex items-center cursor-pointer";
-                sheetBadge.innerHTML = `<i class="fa-solid fa-check-circle text-emerald-400 mr-1.5"></i> Google Sheet: Terhubung`;
+                sheetBadge.innerHTML = `<i class="fa-solid fa-check-circle text-emerald-400 mr-1.5"></i> Google Sheet: Terhubung (Aktif)`;
             } else {
                 sheetBadge.className = "px-3 py-1 bg-slate-800 text-slate-300 border border-slate-700 rounded-xl text-xs font-bold flex items-center cursor-pointer";
                 sheetBadge.innerHTML = `<i class="fa-solid fa-table text-slate-400 mr-1.5"></i> Google Sheet: Belum Terhubung`;
@@ -655,7 +662,7 @@
             const modal = document.getElementById('googleSheetModal');
             const input = document.getElementById('googleSheetUrlInput');
             if (modal && input) {
-                input.value = localStorage.getItem('tka_google_sheet_url') || '';
+                input.value = getGoogleSheetUrl();
                 modal.classList.remove('hidden');
             }
         };
@@ -670,19 +677,19 @@
             const url = input ? input.value.trim() : '';
             if (url) {
                 localStorage.setItem('tka_google_sheet_url', url);
-                alert("URL Google Apps Script berhasil disimpan! Setiap nilai murid kini akan otomatis terkirim ke Google Spreadsheet Anda.");
+                alert("URL Google Apps Script berhasil disimpan!");
             } else {
                 localStorage.removeItem('tka_google_sheet_url');
-                alert("Integrasi Google Spreadsheet dinonaktifkan.");
+                alert("Menggunakan URL Google Spreadsheet bawaan.");
             }
             closeGoogleSheetModal();
             updateSheetBadge();
         };
 
-        // Save result to cloud Firestore
+        // Save result to cloud Firestore & Google Sheet
         window.saveSubmissionToCloud = async function(data) {
-            // Also send to Google Sheet if URL exists
-            const googleSheetUrl = localStorage.getItem('tka_google_sheet_url');
+            // Send to Google Sheet automatically
+            const googleSheetUrl = getGoogleSheetUrl();
             if (googleSheetUrl) {
                 try {
                     fetch(googleSheetUrl, {
