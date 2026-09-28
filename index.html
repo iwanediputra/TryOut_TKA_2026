@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Try Out TKA SD 2026 - Bahasa Indonesia</title>
+    <title>Try Out TKA SD 2026</title>
+    <meta name="description" content="Aplikasi simulasi Try Out Tes Kemampuan Akademik (TKA) SD 2026 untuk Bahasa Indonesia dan Matematika dengan pembahasan dan rekapitulasi nilai.">
+    <meta property="og:title" content="Try Out TKA SD 2026">
+    <meta property="og:description" content="Aplikasi simulasi Try Out Tes Kemampuan Akademik (TKA) SD 2026 untuk Bahasa Indonesia dan Matematika dengan pembahasan dan rekapitulasi nilai.">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -2116,6 +2119,20 @@
             }
         }
 
+        // Server-side Gemini API helper
+        async function callGeminiAPI(prompt, systemInstruction = null) {
+            const response = await fetch('/api/gemini', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt, systemInstruction })
+            });
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status}`);
+            }
+            const data = await response.json();
+            return data?.text;
+        }
+
         // 2. AI Smart Hint
         async function getAIHint() {
             const hintBox = document.getElementById('aiHintBox');
@@ -2127,18 +2144,7 @@
             const promptText = `Anda adalah Bu Guru SD yang ramah dan sabar. Berikan PETUNJUK PINTAR (HINT) singkat (2 kalimat) untuk anak SD kelas 6 agar bisa menjawab soal berikut tanpa langsung membocorkan jawaban akhirnya.\n\nMata Pelajaran: ${studentProfile.subject}\nSoal: ${q.question.replace(/<[^>]*>/g, '')}\nOpsi: ${JSON.stringify(q.options || q.statements)}`;
 
             try {
-                const apiKey = "";
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: promptText }] }],
-                        systemInstruction: { parts: [{ text: "Berikan petunjuk yang membimbing murid SD tanpa membocorkan kunci jawaban." }] }
-                    })
-                });
-                const data = await response.json();
-                const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                const text = await callGeminiAPI(promptText, "Berikan petunjuk yang membimbing murid SD tanpa membocorkan kunci jawaban.");
                 if (text) {
                     hintText.innerText = text;
                 } else {
@@ -2187,17 +2193,7 @@
             const promptText = `Anda adalah Bu Guru SD (Bu Guru Maya) yang sangat ramah, penyabar, dan pandai menjelaskan konsep pelajaran SD (Bahasa Indonesia & Matematika) secara sederhana.\n\nMurid bertanya: "${query}"\nMata Pelajaran Try Out: ${studentProfile.subject}.\n\nBerikan jawaban yang jelas, hangat, menyemangati, dan mudah dipahami oleh anak SD kelas 6 (maksimal 2-3 paragraf pendek).`;
 
             try {
-                const apiKey = "";
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: promptText }] }]
-                    })
-                });
-                const data = await response.json();
-                const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                const reply = await callGeminiAPI(promptText);
                 if (reply) {
                     aiMsg.innerHTML = reply.replace(/\n/g, '<br>');
                 } else {
@@ -2223,17 +2219,7 @@
             const promptText = `Analisis hasil Try Out TKA SD murid ini:\nNama: ${studentProfile.name}\nMata Pelajaran: ${studentProfile.subject}\nNilai Akhir: ${finalScore}/100 (Skor Mentah: ${rawScore})\nSekolah: ${studentProfile.school}\n\nBerikan evaluasi motivatif singkat dalam 3 poin:\n1. Apresiasi Performa Murid\n2. Rekomendasi Materi yang Perlu Dilatih Lagi\n3. Tips Belajar Efektif Menghadapi TKA 2026. Gunakan nada bahasa ramah khas Guru SD.`;
 
             try {
-                const apiKey = "";
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: promptText }] }]
-                    })
-                });
-                const data = await response.json();
-                const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                const text = await callGeminiAPI(promptText);
                 if (text) {
                     content.innerHTML = text.replace(/\n/g, '<br>');
                 } else {

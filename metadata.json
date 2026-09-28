@@ -1,0 +1,8 @@
+{
+  "name": "Try Out TKA SD 2026",
+  "description": "Aplikasi simulasi Try Out Tes Kemampuan Akademik (TKA) SD 2026 untuk Bahasa Indonesia dan Matematika dengan pembahasan dan rekapitulasi nilai.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
